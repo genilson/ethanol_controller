@@ -28,26 +28,36 @@ from construct import Container
 # from construct.debug import Probe
 
 from pox.ethanol.ssl_message.msg_core import msg_default
-from pox.ethanol.ssl_message.msg_core import field_station, field_intf_name
-from pox.ethanol.ssl_message.msg_common import MSG_TYPE, VERSION, DEFAULT_WIFI_INTFNAME
-from pox.ethanol.ssl_message.msg_common import send_and_receive_msg, tri_boolean, len_of_string
+from pox.ethanol.ssl_message.msg_core import field_station, field_intf_name,\
+                                             field_ssid
+from pox.ethanol.ssl_message.msg_common import MSG_TYPE, VERSION,\
+                                               DEFAULT_WIFI_INTFNAME
+from pox.ethanol.ssl_message.msg_common import send_and_receive_msg,\
+                                               tri_boolean, len_of_string
 
 msg_enabled = Struct('msg_enabled',
                      Embed(msg_default),  # default fields
                      Embed(field_intf_name),
+                     Embed(field_ssid),
                      Embed(field_station),
                      SLInt8('value'),
                      # Probe(),
                      )
 
 
-def is_802_11e_enabled(server, id=0, intf_name=DEFAULT_WIFI_INTFNAME, sta_ip=None, sta_port=0):
-    """ verifies if 802.11e is supported and is enabled
+def is_802_11e_enabled(server, id=0, intf_name=DEFAULT_WIFI_INTFNAME,
+                       ssid=None, sta_ip=None, sta_port=0):
+    """ verifies if 802.11e is enabled for an SSID on a interface. WMM
+        availability is set per SSID.
+
       @param server: tuple (ip, port_num)
       @param id: message id
-      @param intf_name: names of the wireless interface
-      @type intf_name: list of str
-      @param sta_ip: ip address of the station that this message should be relayed to, if sta_ip is different from None
+      @param intf_name: name of the wireless interface
+      @type intf_name: str
+      @param ssid: SSID in which to check if wmm is enabled 
+      @type ssid: str
+      @param sta_ip: ip address of the station that this message should be
+                     relayed to, if sta_ip is different from None
       @type sta_ip: str
       @param sta_port: socket port number of the station
       @type sta_port: int
@@ -55,16 +65,21 @@ def is_802_11e_enabled(server, id=0, intf_name=DEFAULT_WIFI_INTFNAME, sta_ip=Non
       @return: msg - received message
     """
     return __get_enabled(server=server, id=id,
-                         sta_ip=sta_ip, sta_port=sta_port, intf_name=intf_name, m_type=MSG_TYPE.MSG_GET_802_11E_ENABLED)
+                         sta_ip=sta_ip, sta_port=sta_port, intf_name=intf_name,
+                         ssid=ssid, m_type=MSG_TYPE.MSG_GET_802_11E_ENABLED)
 
 
-def is_fastbsstransition_compatible(server, id=0, intf_name=DEFAULT_WIFI_INTFNAME, sta_ip=None, sta_port=0):
+def is_fastbsstransition_compatible(server, id=0,
+                                    intf_name=DEFAULT_WIFI_INTFNAME,
+                                    sta_ip=None,
+                                    sta_port=0):
     """ checks if the interface supports fast BSS transition feature
       @param server: tuple (ip, port_num)
       @param id: message id
       @param intf_name: names of the wireless interface
       @type intf_name: list of str
-      @param sta_ip: ip address of the station that this message should be relayed to, if sta_ip is different from None
+      @param sta_ip: ip address of the station that this message should be relayed to,
+                     if sta_ip is different from None
       @type sta_ip: str
       @param sta_port: socket port number of the station
       @type sta_port: int
@@ -72,18 +87,23 @@ def is_fastbsstransition_compatible(server, id=0, intf_name=DEFAULT_WIFI_INTFNAM
       @return: msg - received message
     """
     return __get_enabled(server=server, id=id,
-                         sta_ip=sta_ip, sta_port=sta_port, m_type=MSG_TYPE.MSG_GET_FASTBSSTRANSITION_COMPATIBLE)
+                         sta_ip=sta_ip, sta_port=sta_port,
+                         m_type=MSG_TYPE.MSG_GET_FASTBSSTRANSITION_COMPATIBLE)
 
 
-def __get_enabled(server, id=0, intf_name=None, sta_ip=None, sta_port=0, m_type=None):
+def __get_enabled(server, id=0, intf_name=None, ssid=None, sta_ip=None,
+                  sta_port=0, m_type=None):
     """
      internal function: provides suporte to get_interfaces and get_one_intf
 
       @param server: tuple (ip, port_num)
       @param id: message id
-      @param intf_name: names of the wireless interface
-      @type intf_name: list of str
-      @param sta_ip: ip address of the station that this message should be relayed to, if sta_ip is different from None
+      @param intf_name: name of the wireless interface
+      @type intf_name: str
+      @param ssid: SSID in which to check if wmm is enabled 
+      @type ssid: str
+      @param sta_ip: ip address of the station that this message should be
+                     relayed to, if sta_ip is different from None
       @type sta_ip: str
       @param sta_port: socket port number of the station
       @type sta_port: int
@@ -111,6 +131,8 @@ def __get_enabled(server, id=0, intf_name=None, sta_ip=None, sta_port=0, m_type=
         m_size=0,
         intf_name_size=len_of_string(intf_name),
         intf_name=intf_name,
+        ssid_size=len_of_string(ssid),
+        ssid=ssid,
         sta_ip_size=len_of_string(sta_ip),
         sta_ip=sta_ip,
         sta_port=sta_port,
