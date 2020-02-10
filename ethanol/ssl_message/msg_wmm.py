@@ -39,15 +39,24 @@ ac_params = Struct('ac_params',
 				   SLInt32('admission_control_mandatory'), # 0 or 1, maybe use Flag
 				   )
 
-'''Message that embodies the 4 AC WMM parameters'''
+# Message that embodies the 4 AC WMM parameters
 msg_wmm_ac_params = Struct('msg_wmm_ac_params',
 							Embed(msg_default),
 							Embed(field_station),
 							Embed(field_intf_name),
+							SLInt32('ac'),
 							Array(4, ac_params), #AC_BE, AC_BK, AC_VI, AC_VO
 						  )
 
-def get_wmm_params(server, id=0, intf_name=None, sta_ip=None, sta_port=0):
+msg_wmm_single_ac_params = Struct('msg_wmm_single_ac_params',
+                                  Embed(msg_default),
+								  Embed(field_station),
+								  Embed(field_intf_name),
+								  SLInt32('ac'),
+								  Array(1, ac_params),
+                                  )
+
+def get_wmm_params(server, id=0, ac=-1, intf_name=None, sta_ip=None, sta_port=0):
 	"""Requests WMM params from a interface. Altough WMM is enabled per SSID,
 	   WMM params are set per interface.
 	
@@ -70,8 +79,6 @@ def get_wmm_params(server, id=0, intf_name=None, sta_ip=None, sta_port=0):
 	@return: value - payload of the message, which are the wmm params
 	"""
 
-	params=[]
-
 	entry = Container(
 		    aifs=-1,
 			cwmin=-1,
@@ -80,7 +87,16 @@ def get_wmm_params(server, id=0, intf_name=None, sta_ip=None, sta_port=0):
 			admission_control_mandatory=-1,
 		)
 
-	for ac in xrange(0,4):
+	# IF no access category was provided, an array is integrated in the message
+	# so parameters from all access categories are retrieved
+	params = []
+	if (ac == -1):	
+		for i in xrange(0,4):
+			params.append(entry)
+	else:
+		# If an acess category is provied, a single container is integrated in
+		# the message, so the parameters of the specific access category are
+		# retrieved
 		params.append(entry)
 
     # Creates the message that will be sent to the access point
@@ -95,10 +111,20 @@ def get_wmm_params(server, id=0, intf_name=None, sta_ip=None, sta_port=0):
         sta_port=sta_port,
         intf_name_size=len_of_string(intf_name),
         intf_name=intf_name,
+        ac=ac, # only useful if a single access category is being queried
         ac_params=params,
 	)
 
-	error, msg = send_and_receive_msg(server, msg_struct, msg_wmm_ac_params.build, msg_wmm_ac_params.parse)
+	# If an access category was especified, a message with a single ac_params
+	# structure is sent. Otherwise, a 4 sized array is sent instead.
+	if (ac == -1):
+		error, msg = send_and_receive_msg(server, msg_struct,
+		                                  msg_wmm_ac_params.build,
+		                                  msg_wmm_ac_params.parse)
+	else:
+		error, msg = send_and_receive_msg(server, msg_struct,
+		                                  msg_wmm_single_ac_params.build,
+		                                  msg_wmm_single_ac_params.parse)
 
 	if not error:
 		value = msg['ac_params'] if 'ac_params' in msg else None
